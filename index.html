@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modular App</title>
+</head>
+<body>
+  <div id="app">Loading...</div>
+
+  <script>
+    // Регистрация Service Worker как ESM модуля
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('./sw.js', { type: 'module' })
+        .then((registration) => {
+          console.log('Service Worker registered:', registration.scope);
+        })
+        .catch((error) => {
+          console.error('Service Worker registration failed:', error);
+        });
+    }
+  </script>
+
+  <!-- Динамическая генерация Import Map и загрузка приложения -->
+  <script type="module">
+    import { config, generateImportMap } from './config.js';
+
+    // Определяем модули приложения
+    const modules = {
+      'app': {
+        package: 'app',
+        version: '1.0.0',
+        path: '/index.js'
+      }
+    };
+
+    // Генерируем Import Map
+    const importMap = generateImportMap(modules);
+
+    console.log('[Config] Using source:', config.source);
+    console.log('[Config] Base URL:', config.getBaseUrl());
+    console.log('[Config] Import Map:', importMap);
+
+    // Вставляем Import Map в документ
+    const importMapScript = document.createElement('script');
+    importMapScript.type = 'importmap';
+    importMapScript.textContent = JSON.stringify(importMap, null, 2);
+    document.head.appendChild(importMapScript);
+
+    // После вставки Import Map загружаем главный модуль
+    // Используем динамический import для загрузки после создания Import Map
+    import('app').then(({ init, getVersion }) => {
+      console.log('[Main] Starting app...');
+      console.log('[Main] App version:', getVersion());
+
+      // Запускаем приложение
+      init();
+    }).catch((error) => {
+      console.error('[Main] Failed to load app module:', error);
+      document.getElementById('app').innerHTML = `
+        <div style="color: red; padding: 20px;">
+          <h2>Error loading application</h2>
+          <p>${error.message}</p>
+          <p>Check console for details</p>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>
